@@ -1,19 +1,15 @@
-const POLICY_JSON_URL = 'https://chromium.googlesource.com/chromium/chromium/+/refs/heads/main/chrome/app/policy/policy_templates.json?format=TEXT';
-
 let allPolicies = [];
 let policyValues = {};
+const POLICY_JSON_URL = 'policy_templates.json'; // local file
 
 // Fetch and load policies
 async function loadPolicies() {
   try {
     const response = await fetch(POLICY_JSON_URL);
-    const base64Text = await response.text();
-    
-    // Decode base64 (Googlesource serves content in base64)
-    const decodedText = atob(base64Text.replace(/\s/g,''));
-    const data = JSON.parse(decodedText);
+    const data = await response.json();
 
     allPolicies = [];
+    policyValues = {};
 
     for (const category of data.policy_templates) {
       if (!category.policies) continue;
@@ -22,9 +18,6 @@ async function loadPolicies() {
         const type = policy.type || '';
 
         if (type === 'list') defaultValue = [];
-        else if (type === 'int') defaultValue = null;
-        else if (type === 'string') defaultValue = null;
-        else if (type === 'bool') defaultValue = null;
         else defaultValue = null;
 
         const policyObj = {
@@ -47,7 +40,7 @@ async function loadPolicies() {
   }
 }
 
-// Render policy cards
+// Render policies to the page
 function renderPolicies(policies) {
   const container = document.getElementById('policyContainer');
   container.innerHTML = '';
@@ -70,7 +63,7 @@ function renderPolicies(policies) {
 // Generate input fields based on type
 function generateInput(policy) {
   const key = policy.key;
-  switch(policy.type) {
+  switch (policy.type) {
     case 'bool':
       return `<select data-key="${key}">
         <option value="">Null</option>
@@ -88,7 +81,7 @@ function generateInput(policy) {
   }
 }
 
-// Attach input events to update policyValues
+// Attach events to update policyValues
 function attachChangeEvents() {
   const inputs = document.querySelectorAll('[data-key]');
   inputs.forEach(input => {
@@ -96,7 +89,7 @@ function attachChangeEvents() {
       const key = input.dataset.key;
       if (input.tagName === 'SELECT') {
         const val = input.value;
-        policyValues[key] = val === '' ? null : (val === 'true' ? true : val === 'false' ? false : val);
+        policyValues[key] = val === '' ? null : val === 'true' ? true : val === 'false' ? false : val;
       } else if (input.tagName === 'TEXTAREA') {
         policyValues[key] = input.value ? input.value.split(',').map(v => v.trim()) : [];
       } else if (input.type === 'number') {
@@ -136,11 +129,14 @@ function resetAllPolicies() {
 // Search functionality
 document.getElementById('search').addEventListener('input', e => {
   const term = e.target.value.toLowerCase();
-  const filtered = allPolicies.filter(p => p.key.toLowerCase().includes(term) || p.desc.toLowerCase().includes(term));
+  const filtered = allPolicies.filter(p =>
+    p.key.toLowerCase().includes(term) ||
+    (p.desc && p.desc.toLowerCase().includes(term))
+  );
   renderPolicies(filtered);
 });
 
-// Buttons
+// Button listeners
 document.getElementById('downloadBtn').addEventListener('click', downloadPolicy);
 document.getElementById('resetBtn').addEventListener('click', resetAllPolicies);
 

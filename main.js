@@ -1,40 +1,53 @@
-const POLICY_JSON_URL = 'policy_templates.json';
+const POLICY_JSON_URL = 'https://chromium.googlesource.com/chromium/chromium/+/refs/heads/main/chrome/app/policy/policy_templates.json?format=TEXT';
 
 let allPolicies = [];
 let policyValues = {};
 
+// Fetch and load policies
 async function loadPolicies() {
-  const response = await fetch(POLICY_JSON_URL);
-  const data = await response.json();
+  try {
+    const response = await fetch(POLICY_JSON_URL);
+    const base64Text = await response.text();
+    
+    // Decode base64 (Googlesource serves content in base64)
+    const decodedText = atob(base64Text.replace(/\s/g,''));
+    const data = JSON.parse(decodedText);
 
-  allPolicies = [];
+    allPolicies = [];
 
-  for (const category of data.policy_templates) {
-    if (!category.policies) continue;
-    for (const policy of Object.values(category.policies)) {
-      // Determine default value based on type
-      let defaultValue = null;
-      const type = policy.type || '';
+    for (const category of data.policy_templates) {
+      if (!category.policies) continue;
+      for (const policy of Object.values(category.policies)) {
+        let defaultValue = null;
+        const type = policy.type || '';
 
-      if (type === 'list') defaultValue = [];
-      else defaultValue = null;
+        if (type === 'list') defaultValue = [];
+        else if (type === 'int') defaultValue = null;
+        else if (type === 'string') defaultValue = null;
+        else if (type === 'bool') defaultValue = null;
+        else defaultValue = null;
 
-      const policyObj = {
-        key: policy.name,
-        type: type,
-        desc: policy.desc || '',
-        example: policy.items || '',
-        value: defaultValue
-      };
+        const policyObj = {
+          key: policy.name,
+          type: type,
+          desc: policy.desc || '',
+          example: policy.items || '',
+          value: defaultValue
+        };
 
-      allPolicies.push(policyObj);
-      policyValues[policy.name] = defaultValue;
+        allPolicies.push(policyObj);
+        policyValues[policy.name] = defaultValue;
+      }
     }
-  }
 
-  renderPolicies(allPolicies);
+    renderPolicies(allPolicies);
+  } catch (err) {
+    console.error('Failed to load policies:', err);
+    document.getElementById('policyContainer').innerHTML = '<p style="color:red;">Failed to load policies.</p>';
+  }
 }
 
+// Render policy cards
 function renderPolicies(policies) {
   const container = document.getElementById('policyContainer');
   container.innerHTML = '';
@@ -54,6 +67,7 @@ function renderPolicies(policies) {
   attachChangeEvents();
 }
 
+// Generate input fields based on type
 function generateInput(policy) {
   const key = policy.key;
   switch(policy.type) {
@@ -74,6 +88,7 @@ function generateInput(policy) {
   }
 }
 
+// Attach input events to update policyValues
 function attachChangeEvents() {
   const inputs = document.querySelectorAll('[data-key]');
   inputs.forEach(input => {
@@ -93,6 +108,7 @@ function attachChangeEvents() {
   });
 }
 
+// Download policy.json
 function downloadPolicy() {
   const blob = new Blob([JSON.stringify(policyValues, null, 2)], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
@@ -103,6 +119,7 @@ function downloadPolicy() {
   URL.revokeObjectURL(url);
 }
 
+// Reset all policies to null/empty
 function resetAllPolicies() {
   for (const key in policyValues) {
     const elem = document.querySelector(`[data-key="${key}"]`);
@@ -116,13 +133,16 @@ function resetAllPolicies() {
   }
 }
 
+// Search functionality
 document.getElementById('search').addEventListener('input', e => {
   const term = e.target.value.toLowerCase();
   const filtered = allPolicies.filter(p => p.key.toLowerCase().includes(term) || p.desc.toLowerCase().includes(term));
   renderPolicies(filtered);
 });
 
+// Buttons
 document.getElementById('downloadBtn').addEventListener('click', downloadPolicy);
 document.getElementById('resetBtn').addEventListener('click', resetAllPolicies);
 
+// Initialize
 loadPolicies();

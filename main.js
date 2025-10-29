@@ -1,12 +1,12 @@
 let allPolicies = [];
 let policyValues = {};
-const POLICY_JSON_URL = 'policy_templates.json'; // local file
+const POLICY_JSON_URL = 'policy_templates.json'; // or your GitHub Pages URL
 
-// Fetch and load policies
+// Load policies
 async function loadPolicies() {
   try {
     const response = await fetch(POLICY_JSON_URL);
-    const data = await response.json();
+    const data = await response.json(); // expects valid JSON
 
     allPolicies = [];
     policyValues = {};
@@ -40,7 +40,7 @@ async function loadPolicies() {
   }
 }
 
-// Render policies to the page
+// Render policies
 function renderPolicies(policies) {
   const container = document.getElementById('policyContainer');
   container.innerHTML = '';
@@ -60,7 +60,7 @@ function renderPolicies(policies) {
   attachChangeEvents();
 }
 
-// Generate input fields based on type
+// Generate input fields
 function generateInput(policy) {
   const key = policy.key;
   switch (policy.type) {
@@ -81,7 +81,7 @@ function generateInput(policy) {
   }
 }
 
-// Attach events to update policyValues
+// Attach events
 function attachChangeEvents() {
   const inputs = document.querySelectorAll('[data-key]');
   inputs.forEach(input => {
@@ -112,7 +112,7 @@ function downloadPolicy() {
   URL.revokeObjectURL(url);
 }
 
-// Reset all policies to null/empty
+// Reset all policies
 function resetAllPolicies() {
   for (const key in policyValues) {
     const elem = document.querySelector(`[data-key="${key}"]`);
@@ -126,7 +126,7 @@ function resetAllPolicies() {
   }
 }
 
-// Search functionality
+// Search
 document.getElementById('search').addEventListener('input', e => {
   const term = e.target.value.toLowerCase();
   const filtered = allPolicies.filter(p =>

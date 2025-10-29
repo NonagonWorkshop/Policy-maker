@@ -1,60 +1,38 @@
-const POLICY_JSON_URL = "https://raw.githubusercontent.com/NonagonWorkshop/Policy-maker/refs/heads/main/policy_templates.json";
+const policyUrl = 'https://raw.githubusercontent.com/NonagonWorkshop/Policy-maker/refs/heads/main/policy_templates.json';
 
-let policies = {}; // To store processed policy data
+let policies = {}; // stores current policy values
 
-// Fetch and parse the Python-style JSON
+// Fetch policies from GitHub
 async function loadPolicies() {
   try {
-    const response = await fetch(POLICY_JSON_URL);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const res = await fetch(policyUrl);
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    const data = await res.json();
 
-    let text = await response.text();
+    // Flatten policies into a simple object with default values
+    policies = {};
+    data.forEach(group => {
+      if (!group.policies) return;
+      group.policies.forEach(p => {
+        policies[p.name] = {
+          caption: p.caption || '',
+          desc: p.desc || '',
+          type: p.type,
+          value: p.example_value !== undefined ? p.example_value : null
+        };
+      });
+    });
 
-    // Convert Python-style to proper JSON
-    text = text
-      .replace(/'/g, '"')         // single quotes → double quotes
-      .replace(/\bTrue\b/g, 'true')
-      .replace(/\bFalse\b/g, 'false')
-      .replace(/\bNone\b/g, 'null')
-      .replace(/"""(.*?)"""/gs, '"$1"') // remove triple quotes
-      .replace(/\\n/g, ''); // optional: remove literal newline chars
-
-    const data = JSON.parse(text);
-
-    // Flatten policies
-    policies = flattenPolicies(data);
     renderPolicies(policies);
 
   } catch (err) {
     console.error('Failed to load policies:', err);
-    document.getElementById('policyContainer').innerHTML =
-      `<p style="color:red;">Failed to load policies: ${err.message}</p>`;
+    const container = document.getElementById('policyContainer');
+    container.innerHTML = '<p style="color:red;">Failed to load policies.</p>';
   }
 }
 
-// Flatten the nested Python-style structure
-function flattenPolicies(data) {
-  let result = {};
-
-  if (Array.isArray(data)) {
-    data.forEach(group => {
-      if (group.policies) {
-        group.policies.forEach(p => {
-          result[p.name] = {
-            type: p.type || 'string',
-            value: p.example_value !== undefined ? p.example_value : null,
-            caption: p.caption || '',
-            desc: p.desc || ''
-          };
-        });
-      }
-    });
-  }
-
-  return result;
-}
-
-// Render the policy editor UI
+// Render all policies into the page
 function renderPolicies(policies) {
   const container = document.getElementById('policyContainer');
   container.innerHTML = '';
@@ -69,25 +47,40 @@ function renderPolicies(policies) {
     label.innerHTML = `<strong>${key}</strong>: ${p.caption}`;
 
     let input;
-    if (p.type === 'boolean') {
+
+    // Boolean
+    if (p.type === 'boolean' || typeof p.value === 'boolean') {
       input = document.createElement('input');
       input.type = 'checkbox';
       input.checked = !!p.value;
-    } else if (p.type === 'integer') {
+      input.onchange = () => { policies[key].value = input.checked; };
+
+    // Only 0, 1, 2 → dropdown
+    } else if (typeof p.value === 'number' && [0,1,2].includes(p.value)) {
+      input = document.createElement('select');
+      [0,1,2].forEach(val => {
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = val;
+        if (val === p.value) opt.selected = true;
+        input.appendChild(opt);
+      });
+      input.onchange = () => { policies[key].value = parseInt(input.value); };
+
+    // Other number
+    } else if (typeof p.value === 'number') {
       input = document.createElement('input');
       input.type = 'number';
       input.value = p.value !== null ? p.value : 0;
+      input.onchange = () => { policies[key].value = parseInt(input.value) || 0; };
+
+    // String
     } else {
       input = document.createElement('input');
       input.type = 'text';
       input.value = p.value !== null ? p.value : '';
+      input.onchange = () => { policies[key].value = input.value; };
     }
-
-    input.onchange = () => {
-      if (p.type === 'boolean') policies[key].value = input.checked;
-      else if (p.type === 'integer') policies[key].value = parseInt(input.value) || 0;
-      else policies[key].value = input.value;
-    };
 
     wrapper.appendChild(label);
     wrapper.appendChild(document.createElement('br'));
@@ -96,23 +89,21 @@ function renderPolicies(policies) {
     container.appendChild(wrapper);
   });
 
-  // Add a download button
+  // Add download button
   const btn = document.createElement('button');
   btn.textContent = 'Download Policy File';
   btn.onclick = downloadPolicy;
+  container.appendChild(document.createElement('hr'));
   container.appendChild(btn);
 }
 
-// Download the JSON policy file
+// Download current policies as JSON
 function downloadPolicy() {
-  const output = {};
-  Object.keys(policies).forEach(key => {
-    output[key] = policies[key].value;
-  });
-
-  const blob = new Blob([JSON.stringify(output, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(
+    Object.fromEntries(
+      Object.entries(policies).map(([k,v]) => [k, v.value])
+    ), null, 2)], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
-
   const a = document.createElement('a');
   a.href = url;
   a.download = 'chrome_policy.json';
@@ -121,4 +112,4 @@ function downloadPolicy() {
 }
 
 // Initialize
-window.addEventListener('DOMContentLoaded', loadPolicies);
+window.onload = loadPolicies;

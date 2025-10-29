@@ -2,12 +2,31 @@ const policyUrl = 'https://raw.githubusercontent.com/NonagonWorkshop/Policy-make
 
 let policies = {}; // stores current policy values
 
-// Fetch policies from GitHub
+// Convert Python-style JSON to valid JSON
+function pythonToJson(text) {
+  return text
+    .replace(/'/g, '"')                 // single quotes → double quotes
+    .replace(/\bTrue\b/g, 'true')       // True → true
+    .replace(/\bFalse\b/g, 'false')     // False → false
+    .replace(/\bNone\b/g, 'null');      // None → null
+}
+
+// Fetch and load policies
 async function loadPolicies() {
   try {
     const res = await fetch(policyUrl);
     if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-    const data = await res.json();
+
+    const text = await res.text();
+    let data;
+    try {
+      data = JSON.parse(pythonToJson(text));
+    } catch (e) {
+      console.error('Failed to parse policies:', e);
+      document.getElementById('policyContainer').innerHTML =
+        '<p style="color:red;">Failed to parse policies.</p>';
+      return;
+    }
 
     // Flatten policies into a simple object with default values
     policies = {};
@@ -55,7 +74,7 @@ function renderPolicies(policies) {
       input.checked = !!p.value;
       input.onchange = () => { policies[key].value = input.checked; };
 
-    // Only 0, 1, 2 → dropdown
+    // Only 0,1,2 → dropdown
     } else if (typeof p.value === 'number' && [0,1,2].includes(p.value)) {
       input = document.createElement('select');
       [0,1,2].forEach(val => {

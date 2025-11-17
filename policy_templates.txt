@@ -1,5 +1,3 @@
-
-Policy Name   	Description
 Accessibility settings
 AccessibilityShortcutsEnabled	Enable accessibility features shortcuts
 AutoclickEnabled	Enable the autoclick accessibility feature

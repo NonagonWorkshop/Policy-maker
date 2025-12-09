@@ -2,15 +2,43 @@ let policyData = {};
 let currentCategory = '';
 let selectedPolicies = [];
 
+// Fetch and flatten JSON from GitHub
 fetch('policy_templates.json')
     .then(res => res.json())
     .then(data => {
-        policyData = data;
+        policyData = flattenPolicies(data);
         buildCategorySidebar();
         const firstCategory = Object.keys(policyData)[0];
         if(firstCategory) showPolicies(firstCategory);
     });
 
+// Flatten policy groups and standalone policies
+function flattenPolicies(rawData) {
+    const result = {};
+    rawData.forEach(item => {
+        if(item.type === 'group' && Array.isArray(item.policies)) {
+            const catName = item.caption || item.name;
+            result[catName] = item.policies.map(p => ({
+                id: p.name,
+                description: p.desc,
+                type: p.type || 'Boolean',
+                default: p.example_value || false
+            }));
+        } else {
+            const catName = 'General';
+            if(!result[catName]) result[catName] = [];
+            result[catName].push({
+                id: item.name,
+                description: item.desc,
+                type: item.type || 'Boolean',
+                default: item.example_value || false
+            });
+        }
+    });
+    return result;
+}
+
+// Build sidebar with categories
 function buildCategorySidebar() {
     const sidebar = document.getElementById('categorySidebar');
     sidebar.innerHTML = '';
@@ -22,6 +50,7 @@ function buildCategorySidebar() {
     });
 }
 
+// Show policies for selected category
 function showPolicies(category) {
     currentCategory = category;
     document.querySelectorAll('#categorySidebar button').forEach(btn => {
@@ -51,7 +80,7 @@ function showPolicies(category) {
         if(policy.type === 'Boolean') {
             input = document.createElement('input');
             input.type = 'checkbox';
-            input.checked = policy.default || false;
+            input.checked = policy.default;
         } else {
             input = document.createElement('input');
             input.type = 'text';

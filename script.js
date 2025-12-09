@@ -2,17 +2,18 @@ let policyData = {};
 let currentCategory = '';
 let selectedPolicies = [];
 
-// Fetch and flatten JSON from GitHub
+// Fetch JSON from GitHub Pages
 fetch('https://nonagonworkshop.github.io/Policy-maker/policy_templates.json')
-    .then(res => res.json())
-    .then(data => {
-        policyData = flattenPolicies(data);
-        buildCategorySidebar();
-        const firstCategory = Object.keys(policyData)[0];
-        if(firstCategory) showPolicies(firstCategory);
-    });
+  .then(res => res.json())
+  .then(data => {
+      policyData = flattenPolicies(data);
+      buildCategorySidebar();
+      const firstCategory = Object.keys(policyData)[0];
+      if(firstCategory) showPolicies(firstCategory);
+  })
+  .catch(err => console.error('Failed to fetch JSON:', err));
 
-// Flatten policy groups and standalone policies
+// Flatten policy groups and top-level policies
 function flattenPolicies(rawData) {
     const result = {};
     rawData.forEach(item => {
@@ -22,7 +23,8 @@ function flattenPolicies(rawData) {
                 id: p.name,
                 description: p.desc,
                 type: p.type || 'Boolean',
-                default: p.example_value || false
+                default: p.example_value ?? false,
+                values: p.values ?? null
             }));
         } else {
             const catName = 'General';
@@ -31,7 +33,8 @@ function flattenPolicies(rawData) {
                 id: item.name,
                 description: item.desc,
                 type: item.type || 'Boolean',
-                default: item.example_value || false
+                default: item.example_value ?? false,
+                values: item.values ?? null
             });
         }
     });
@@ -50,7 +53,7 @@ function buildCategorySidebar() {
     });
 }
 
-// Show policies for selected category
+// Render policies for selected category
 function showPolicies(category) {
     currentCategory = category;
     document.querySelectorAll('#categorySidebar button').forEach(btn => {
@@ -59,7 +62,6 @@ function showPolicies(category) {
 
     const main = document.getElementById('policyMain');
     main.innerHTML = '';
-
     const searchTerm = document.getElementById('searchInput').value.toLowerCase();
 
     policyData[category].forEach(policy => {
@@ -81,6 +83,19 @@ function showPolicies(category) {
             input = document.createElement('input');
             input.type = 'checkbox';
             input.checked = policy.default;
+        } else if(policy.type === 'string-enum' && Array.isArray(policy.values)) {
+            input = document.createElement('select');
+            policy.values.forEach(val => {
+                const opt = document.createElement('option');
+                opt.value = val;
+                opt.textContent = val;
+                if(policy.default === val) opt.selected = true;
+                input.appendChild(opt);
+            });
+        } else if(policy.type === 'list') {
+            input = document.createElement('textarea');
+            input.value = Array.isArray(policy.default) ? policy.default.join('\n') : '';
+            input.rows = 3;
         } else {
             input = document.createElement('input');
             input.type = 'text';
@@ -89,12 +104,13 @@ function showPolicies(category) {
 
         input.onchange = () => {
             const index = selectedPolicies.findIndex(p => p.PolicyName === policy.id);
-            const value = (policy.type === 'Boolean') ? input.checked : input.value;
-            if(index > -1) {
-                selectedPolicies[index].PolicyValue = value;
-            } else {
-                selectedPolicies.push({ PolicyName: policy.id, PolicyValue: value });
-            }
+            let value;
+            if(policy.type === 'Boolean') value = input.checked;
+            else if(policy.type === 'list') value = input.value.split('\n').filter(l => l.trim());
+            else value = input.value;
+
+            if(index > -1) selectedPolicies[index].PolicyValue = value;
+            else selectedPolicies.push({ PolicyName: policy.id, PolicyValue: value });
         };
 
         card.appendChild(input);
@@ -104,7 +120,7 @@ function showPolicies(category) {
 
 // Search filter
 document.getElementById('searchInput').addEventListener('input', () => {
-    showPolicies(currentCategory);
+    if(currentCategory) showPolicies(currentCategory);
 });
 
 // Export button

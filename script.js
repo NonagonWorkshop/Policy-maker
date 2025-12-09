@@ -3,7 +3,7 @@ let currentCategory = '';
 let selectedPolicies = [];
 
 // Fetch and flatten JSON from GitHub
-fetch('policy_templates.json')
+fetch('https://nonagonworkshop.github.io/Policy-maker/policy_templates.json')
     .then(res => res.json())
     .then(data => {
         policyData = flattenPolicies(data);

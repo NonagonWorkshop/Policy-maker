@@ -2,29 +2,23 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChromeOS Policy Maker</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Nono Policy Maker</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <header>
+        <h1>Nono Policy Maker</h1>
+        <input type="text" id="searchInput" placeholder="Search policies...">
+        <button id="exportBtn">Export JSON</button>
+    </header>
     <div class="container">
-        <h1>ChromeOS Policy Maker</h1>
-        <form id="policyForm">
-            <label for="policyName">Policy Name:</label>
-            <input type="text" id="policyName" name="policyName" required>
-            
-            <label for="policyValue">Policy Value:</label>
-            <input type="text" id="policyValue" name="policyValue" required>
-            
-            <button type="submit">Generate policy.json</button>
-        </form>
-        
-        <hr>
-        <h2>Generated Policy JSON:</h2>
-        <pre id="jsonOutput"></pre>
-        <button id="downloadBtn">Download policy.json</button>
+        <aside id="categorySidebar">
+            <!-- Categories populated by JS -->
+        </aside>
+        <main id="policyMain">
+            <!-- Policies populated by JS -->
+        </main>
     </div>
-
-    <script src="main.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
